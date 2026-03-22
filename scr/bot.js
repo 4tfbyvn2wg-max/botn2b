@@ -1,10 +1,4 @@
-const {
-  Client,
-  GatewayIntentBits,
-  REST,
-  Routes,
-  SlashCommandBuilder,
-} = require("discord.js");
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
 const fs = require("fs");
 const https = require("https");
 
@@ -24,8 +18,8 @@ const client = new Client({
 
 // ─── STOCKAGE ────────────────────────────────────────────────────────────────
 
-let artists = {}; // { channelId: "Nom affiché" }
-let lastVideos = {}; // { channelId: "lastVideoId" }
+let artists        = {}; // { channelId: "Nom affiché" }
+let lastVideos     = {}; // { channelId: "lastVideoId" }
 let notifChannelId = null;
 
 const DATA_DIR = "./data";
@@ -33,14 +27,11 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 
 const ARTISTS_FILE = `${DATA_DIR}/artists.json`;
 const CHANNEL_FILE = `${DATA_DIR}/channel.json`;
-const LAST_FILE = `${DATA_DIR}/lastVideos.json`;
+const LAST_FILE    = `${DATA_DIR}/lastVideos.json`;
 
-if (fs.existsSync(ARTISTS_FILE))
-  artists = JSON.parse(fs.readFileSync(ARTISTS_FILE, "utf-8"));
-if (fs.existsSync(CHANNEL_FILE))
-  notifChannelId = JSON.parse(fs.readFileSync(CHANNEL_FILE, "utf-8"));
-if (fs.existsSync(LAST_FILE))
-  lastVideos = JSON.parse(fs.readFileSync(LAST_FILE, "utf-8"));
+if (fs.existsSync(ARTISTS_FILE))  artists        = JSON.parse(fs.readFileSync(ARTISTS_FILE, "utf-8"));
+if (fs.existsSync(CHANNEL_FILE))  notifChannelId = JSON.parse(fs.readFileSync(CHANNEL_FILE, "utf-8"));
+if (fs.existsSync(LAST_FILE))     lastVideos     = JSON.parse(fs.readFileSync(LAST_FILE, "utf-8"));
 
 if (Array.isArray(artists)) {
   artists = {};
@@ -49,7 +40,7 @@ if (Array.isArray(artists)) {
 
 function save() {
   fs.writeFileSync(ARTISTS_FILE, JSON.stringify(artists, null, 2));
-  fs.writeFileSync(LAST_FILE, JSON.stringify(lastVideos, null, 2));
+  fs.writeFileSync(LAST_FILE,    JSON.stringify(lastVideos, null, 2));
 }
 
 // ─── HTTP GET HELPER ─────────────────────────────────────────────────────────
@@ -60,34 +51,26 @@ function httpGet(url, redirectCount = 0, timeoutMs = 8000) {
 
     const options = {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
         "Accept-Encoding": "identity",
-        Connection: "keep-alive",
+        "Connection": "keep-alive",
       },
     };
 
-    const req = https
-      .get(url, options, (res) => {
-        if (
-          res.statusCode >= 300 &&
-          res.statusCode < 400 &&
-          res.headers.location
-        ) {
-          const next = res.headers.location.startsWith("http")
-            ? res.headers.location
-            : `https://www.youtube.com${res.headers.location}`;
-          return resolve(httpGet(next, redirectCount + 1, timeoutMs));
-        }
+    const req = https.get(url, options, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const next = res.headers.location.startsWith("http")
+          ? res.headers.location
+          : `https://www.youtube.com${res.headers.location}`;
+        return resolve(httpGet(next, redirectCount + 1, timeoutMs));
+      }
 
-        let body = "";
-        res.on("data", (chunk) => (body += chunk));
-        res.on("end", () => resolve(body));
-      })
-      .on("error", () => resolve(null));
+      let body = "";
+      res.on("data", (chunk) => (body += chunk));
+      res.on("end", () => resolve(body));
+    }).on("error", () => resolve(null));
 
     req.setTimeout(timeoutMs, () => {
       req.destroy();
@@ -109,10 +92,7 @@ function httpGet(url, redirectCount = 0, timeoutMs = 8000) {
  * Retourne { channelId, name } ou null.
  */
 async function resolveChannel(input) {
-  input = input
-    .trim()
-    .replace(/[?&]si=[^&\s]+/g, "")
-    .trim();
+  input = input.trim().replace(/[?&]si=[^&\s]+/g, "").trim();
 
   // 1. Déjà un channel ID valide
   if (/^UC[\w-]{22}$/.test(input)) {
@@ -129,18 +109,12 @@ async function resolveChannel(input) {
   }
 
   // 2b. URL d'une vidéo YouTube (watch?v=, youtu.be/, /shorts/, /live/)
-  const videoIdMatch = input.match(
-    /(?:youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/,
-  );
+  const videoIdMatch = input.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
   if (videoIdMatch) {
     const videoId = videoIdMatch[1];
-    console.log(
-      `🎬 URL vidéo détectée, extraction de la chaîne pour : ${videoId}`,
-    );
+    console.log(`🎬 URL vidéo détectée, extraction de la chaîne pour : ${videoId}`);
     // Essai via oEmbed → author_url peut contenir /channel/UCxxx ou /@handle
-    const oEmbed = await httpGet(
-      `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`,
-    );
+    const oEmbed = await httpGet(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
     if (oEmbed) {
       try {
         const data = JSON.parse(oEmbed);
@@ -150,41 +124,27 @@ async function resolveChannel(input) {
         if (chIdFromOembed) {
           const channelId = chIdFromOembed[1];
           const v = await fetchLatestVideo(channelId);
-          return {
-            channelId,
-            name: v?.author ?? data.author_name ?? channelId,
-          };
+          return { channelId, name: v?.author ?? data.author_name ?? channelId };
         }
         // Cas 2 : author_url contient /@handle → scraper cette page
         const handleFromOembed = authorUrl.match(/\/@([\w.-]+)/);
         if (handleFromOembed) {
-          const html = await httpGet(
-            `https://www.youtube.com/@${handleFromOembed[1]}`,
-          );
+          const html = await httpGet(`https://www.youtube.com/@${handleFromOembed[1]}`);
           if (html) {
-            const found =
-              html.match(/"browseId":"(UC[\w-]{22})"/) ||
-              html.match(/\/channel\/(UC[\w-]{22})/);
+            const found = html.match(/"browseId":"(UC[\w-]{22})"/) || html.match(/\/channel\/(UC[\w-]{22})/);
             if (found) {
               const channelId = found[1];
               const v = await fetchLatestVideo(channelId);
-              return {
-                channelId,
-                name: v?.author ?? data.author_name ?? channelId,
-              };
+              return { channelId, name: v?.author ?? data.author_name ?? channelId };
             }
           }
         }
-      } catch {
-        /* continue */
-      }
+      } catch { /* continue */ }
     }
     // Fallback : scraper la page vidéo directement
     const page = await httpGet(`https://www.youtube.com/watch?v=${videoId}`);
     if (page) {
-      const found =
-        page.match(/"browseId":"(UC[\w-]{22})"/) ||
-        page.match(/\/channel\/(UC[\w-]{22})/);
+      const found = page.match(/"browseId":"(UC[\w-]{22})"/) || page.match(/\/channel\/(UC[\w-]{22})/);
       if (found) {
         const channelId = found[1];
         const v = await fetchLatestVideo(channelId);
@@ -200,10 +160,7 @@ async function resolveChannel(input) {
   const customFromUrl = input.match(/youtube\.com\/c\/([\w.-]+)/);
   if (handleFromUrl) handle = handleFromUrl[1];
   else if (customFromUrl) handle = customFromUrl[1];
-  else
-    handle = handle
-      .replace(/^https?:\/\/(www\.)?youtube\.com\/?/, "")
-      .replace(/^@/, "");
+  else handle = handle.replace(/^https?:\/\/(www\.)?youtube\.com\/?/, "").replace(/^@/, "");
 
   handle = handle.split("?")[0].split("/")[0].trim();
 
@@ -232,15 +189,13 @@ async function resolveChannel(input) {
           r.type === "channel" &&
           (r.authorId?.startsWith("UC") ||
             r.handle?.toLowerCase() === `@${handle.toLowerCase()}` ||
-            r.author?.toLowerCase().includes(handle.toLowerCase())),
+            r.author?.toLowerCase().includes(handle.toLowerCase()))
       );
 
       if (match?.authorId) {
         const channelId = match.authorId;
         const name = match.author ?? handle;
-        console.log(
-          `✅ Résolu via Invidious : ${handle} → ${channelId} (${name})`,
-        );
+        console.log(`✅ Résolu via Invidious : ${handle} → ${channelId} (${name})`);
         return { channelId, name };
       }
     } catch {
@@ -271,9 +226,7 @@ async function resolveChannel(input) {
         const channelId = found[1];
         const v = await fetchLatestVideo(channelId);
         const name = v?.author ?? handle;
-        console.log(
-          `✅ Résolu via scraping : ${handle} → ${channelId} (${name})`,
-        );
+        console.log(`✅ Résolu via scraping : ${handle} → ${channelId} (${name})`);
         return { channelId, name };
       }
     }
@@ -284,29 +237,49 @@ async function resolveChannel(input) {
 
 // ─── FLUX RSS YOUTUBE ────────────────────────────────────────────────────────
 
+// Fonction pour vérifier si c'est un Short (sans clé API)
+async function isShort(videoId) {
+  return new Promise((resolve) => {
+    const url = `https://www.youtube.com/shorts/${videoId}`;
+    httpGet(url).then((html) => {
+      // YouTube redirige les vraies vidéos, les Shorts restent sur /shorts/
+      // Si la page contient "og:url" avec "shorts", c'est un Short
+      const isShortVideo = html && html.includes(`/shorts/${videoId}`);
+      resolve(isShortVideo);
+    }).catch(() => resolve(false));
+  });
+}
+
+// Remplace ta fonction fetchLatestVideo par celle-ci :
 function fetchLatestVideo(channelId) {
   return new Promise((resolve) => {
     const url = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
     httpGet(url).then(async (xml) => {
       if (!xml) return resolve(null);
       try {
-        const videoIdMatch = xml.match(/<yt:videoId>([^<]+)<\/yt:videoId>/);
+        // Récupère TOUTES les vidéos du feed (pas juste la première)
+        const videoIdMatches = [...xml.matchAll(/<yt:videoId>([^<]+)<\/yt:videoId>/g)];
         const titleMatches = xml.match(/<title>([^<]+)<\/title>/g);
         const authorMatch = xml.match(/<name>([^<]+)<\/name>/);
 
-        if (!videoIdMatch) return resolve(null);
+        if (!videoIdMatches.length) return resolve(null);
 
-        const videoId = videoIdMatch[1];
-        const title =
-          titleMatches?.[1]?.replace(/<\/?title>/g, "").trim() ?? "Sans titre";
         const author = authorMatch?.[1]?.trim() ?? channelId;
-        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-        const shortsPage = await httpGet(
-          `https://www.youtube.com/shorts/${videoId}`,
-        );
-        if (shortsPage && shortsPage.includes('"isShort":true'))
-          return resolve(null);
-        resolve({ videoId, title, author, url: videoUrl });
+
+        // Parcourt les vidéos et skip les Shorts
+        for (let i = 0; i < videoIdMatches.length; i++) {
+          const videoId = videoIdMatches[i][1];
+          const short = await isShort(videoId);
+          if (short) {
+            console.log(`⏭️ Short ignoré : ${videoId}`);
+            continue;
+          }
+          const title = titleMatches?.[i + 1]?.replace(/<\/?title>/g, "").trim() ?? "Sans titre";
+          const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+          return resolve({ videoId, title, author, url: videoUrl });
+        }
+
+        resolve(null); // Aucune vraie vidéo trouvée
       } catch {
         resolve(null);
       }
@@ -329,9 +302,7 @@ async function checkNew() {
   for (const channelId of channelIds) {
     const latest = await fetchLatestVideo(channelId);
     if (!latest) {
-      console.warn(
-        `⚠️  Pas de vidéo récupérée pour : ${artists[channelId]} (${channelId})`,
-      );
+      console.warn(`⚠️  Pas de vidéo récupérée pour : ${artists[channelId]} (${channelId})`);
       continue;
     }
 
@@ -347,17 +318,13 @@ async function checkNew() {
       try {
         await discordChannel.send(
           `🎵 **Nouvelle sortie !**\n` +
-            `**${latest.author}** vient de publier : **${latest.title}**\n` +
-            `${latest.url}`,
+          `**${latest.author}** vient de publier : **${latest.title}**\n` +
+          `${latest.url}`
         );
         console.log(`📢 Nouvelle vidéo : ${latest.author} — ${latest.title}`);
       } catch (err) {
-        console.error(
-          `❌ Impossible d'envoyer la notification pour ${latest.author} : ${err.message}`,
-        );
-        console.error(
-          `   → Vérifie que le bot a la permission "Envoyer des messages" dans le salon.`,
-        );
+        console.error(`❌ Impossible d'envoyer la notification pour ${latest.author} : ${err.message}`);
+        console.error(`   → Vérifie que le bot a la permission "Envoyer des messages" dans le salon.`);
       }
     }
   }
@@ -370,20 +337,18 @@ const slashCommands = [
     .setName("add")
     .setDescription("Ajouter un artiste à suivre")
     .addStringOption((opt) =>
-      opt
-        .setName("artiste")
+      opt.setName("artiste")
         .setDescription("URL YouTube, @handle, ou ID de chaîne (UCxxxxxx)")
-        .setRequired(true),
+        .setRequired(true)
     ),
 
   new SlashCommandBuilder()
     .setName("remove")
     .setDescription("Retirer un artiste de la liste")
     .addStringOption((opt) =>
-      opt
-        .setName("artiste")
+      opt.setName("artiste")
         .setDescription("URL YouTube, @handle, ou ID de chaîne")
-        .setRequired(true),
+        .setRequired(true)
     ),
 
   new SlashCommandBuilder()
@@ -394,7 +359,7 @@ const slashCommands = [
     .setName("channel")
     .setDescription("Définir le salon où poster les notifications")
     .addChannelOption((opt) =>
-      opt.setName("salon").setDescription("Choisis le salon").setRequired(true),
+      opt.setName("salon").setDescription("Choisis le salon").setRequired(true)
     ),
 
   new SlashCommandBuilder()
@@ -419,17 +384,11 @@ async function registerCommands() {
 // ─── PROTECTION ANTI-CRASH GLOBALE ───────────────────────────────────────────
 
 process.on("uncaughtException", (err) => {
-  console.error(
-    "❌ [UNCAUGHT EXCEPTION] Le bot ne crash pas grâce à la protection :",
-    err?.message ?? err,
-  );
+  console.error("❌ [UNCAUGHT EXCEPTION] Le bot ne crash pas grâce à la protection :", err?.message ?? err);
 });
 
 process.on("unhandledRejection", (reason) => {
-  console.error(
-    "❌ [UNHANDLED REJECTION] Le bot ne crash pas grâce à la protection :",
-    reason?.message ?? reason,
-  );
+  console.error("❌ [UNHANDLED REJECTION] Le bot ne crash pas grâce à la protection :", reason?.message ?? reason);
 });
 
 // ─── ÉVÉNEMENTS ──────────────────────────────────────────────────────────────
@@ -466,7 +425,7 @@ client.on("interactionCreate", async (interaction) => {
       if (!resolved) {
         return interaction.editReply(
           `❌ Impossible de trouver la chaîne : \`${input}\`\n\n` +
-            `Essaie avec l'URL complète de la chaîne YouTube (pas d'une vidéo).`,
+          `Essaie avec l'URL complète de la chaîne YouTube (pas d'une vidéo).`
         );
       }
 
@@ -478,9 +437,7 @@ client.on("interactionCreate", async (interaction) => {
       artists[channelId] = name;
       save();
       console.log(`➕ Ajouté : ${name} (${channelId})`);
-      return interaction.editReply(
-        `✅ **${name}** ajouté ! Notif dès qu'il/elle sort quelque chose.`,
-      );
+      return interaction.editReply(`✅ **${name}** ajouté ! Notif dès qu'il/elle sort quelque chose.`);
     }
 
     // /remove
@@ -496,13 +453,11 @@ client.on("interactionCreate", async (interaction) => {
         name = artists[input];
       } else {
         // Cherche par nom
-        const found = Object.entries(artists).find(
-          ([, n]) => n.toLowerCase() === input.toLowerCase(),
+        const found = Object.entries(artists).find(([, n]) =>
+          n.toLowerCase() === input.toLowerCase()
         );
-        if (found) {
-          channelId = found[0];
-          name = found[1];
-        } else {
+        if (found) { channelId = found[0]; name = found[1]; }
+        else {
           const resolved = await resolveChannel(input);
           if (resolved && artists[resolved.channelId]) {
             channelId = resolved.channelId;
@@ -525,9 +480,7 @@ client.on("interactionCreate", async (interaction) => {
     if (cmd === "list") {
       const entries = Object.entries(artists);
       if (entries.length === 0) {
-        return interaction.reply(
-          "Aucun artiste suivi. Utilise `/add` pour en ajouter !",
-        );
+        return interaction.reply("Aucun artiste suivi. Utilise `/add` pour en ajouter !");
       }
 
       const sorted = entries.map(([, n]) => `• ${n}`).sort();
@@ -566,31 +519,25 @@ client.on("interactionCreate", async (interaction) => {
       await safeCheck();
       return interaction.editReply("✅ Vérification terminée !");
     }
+
   } catch (err) {
     console.error(`❌ Erreur commande /${cmd} :`, err?.message ?? err);
     // Tenter d'informer l'utilisateur sans crasher
     try {
-      const msg =
-        "❌ Une erreur est survenue. Réessaie dans quelques secondes.";
+      const msg = "❌ Une erreur est survenue. Réessaie dans quelques secondes.";
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply(msg);
       } else {
         await interaction.reply({ content: msg, ephemeral: true });
       }
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   }
 });
 
 // ─── RECONNEXION AUTO ─────────────────────────────────────────────────────────
 
-client.on("disconnect", () =>
-  console.warn("⚠️  Déconnecté de Discord, reconnexion..."),
-);
-client.on("error", (err) =>
-  console.error("❌ Erreur client Discord :", err?.message ?? err),
-);
+client.on("disconnect", () => console.warn("⚠️  Déconnecté de Discord, reconnexion..."));
+client.on("error", (err) => console.error("❌ Erreur client Discord :", err?.message ?? err));
 
 // ─── CONNEXION ───────────────────────────────────────────────────────────────
 
