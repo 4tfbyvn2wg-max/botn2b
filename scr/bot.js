@@ -267,13 +267,16 @@ function fetchLatestVideo(channelId) {
         const author = authorMatch?.[1]?.trim() ?? channelId;
 
         // Parcourt les vidéos et skip les Shorts
+        const publishedMatches = [...xml.matchAll(/<published>([^<]+)<\/published>/g)];
         for (let i = 0; i < videoIdMatches.length; i++) {
           const videoId = videoIdMatches[i][1];
           const short = await isShort(videoId);
           if (short) {
             console.log(`⏭️ Short ignoré : ${videoId}`);
             continue;
-          }
+          } 
+          const pubDate = publishedMatches[i + 1] ? new Date(publishedMatches[i + 1][1]) : null;
+          if (pubDate && (Date.now() - pubDate) / (1000 * 60 * 60 * 24) > 7) continue;
           const title = titleMatches?.[i + 1]?.replace(/<\/?title>/g, "").trim() ?? "Sans titre";
           const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
           return resolve({ videoId, title, author, url: videoUrl });
@@ -483,8 +486,8 @@ client.on("interactionCreate", async (interaction) => {
         return interaction.reply("Aucun artiste suivi. Utilise `/add` pour en ajouter !");
       }
 
-      const sorted = entries.map(([, n]) => `• ${n}`).sort();
-      const header = `🎧 **Artistes suivis (${entries.length}) :**\n`;
+      const sorted = entries.map(([, n]) => `· **${n}**`).sort();
+      const header = `🎧 **Artistes suivis** (${entries.length}) :**\n`;
       const chunks = [];
       let current = header;
 
